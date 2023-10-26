@@ -11,9 +11,10 @@ import math
 import numpy as np
 
 import logging
-PRELIMINARY_FILTER_DISTANCE = 100
 
-MAX_RENDER_DEPTH_IN_METERS = 50
+PRELIMINARY_FILTER_DISTANCE = 100
+MAX_RENDER_DEPTH_IN_METERS = 100
+
 MIN_VISIBLE_VERTICES_FOR_RENDER = 3
 MAX_OUT_VERTICES_FOR_RENDER = 5
 
@@ -28,7 +29,7 @@ LABEL_FILE = os.path.join(
 if not os.path.exists(os.path.dirname(LABEL_FILE)):
     os.makedirs(os.path.dirname(LABEL_FILE))
 if not os.path.exists(IMAGE_PATH):
-    os.makedirs(os.path.dirname(IMAGE_PATH))
+    os.makedirs(IMAGE_PATH)
 
 try:
     f_label = open(LABEL_FILE, "w+")
@@ -37,10 +38,12 @@ except OSError:
     exit(1)
 
 
-def calculate_occlusion_stats(vertices_pos2d, depth_image, image_h, image_w):
+def calculate_occlusion_stats(vertices_pos2d, depth_image):
     """ 作用：筛选bbox八个顶点中实际可见的点 """
     num_visible_vertices = 0
     num_vertices_outside_camera = 0
+
+    image_h, image_w = depth_image.shape
 
     for y_2d, x_2d, vertex_depth in vertices_pos2d:
         # 点在可见范围中，并且没有超出图片范围
@@ -486,7 +489,7 @@ def point_is_occluded(point, depth_map):
     """ Checks whether or not the four pixels directly around the given point has less depth than the given vertex depth
         If True, this means that the point is occluded.
     """
-    x, y, vertex_depth = map(int, point)
+    y, x, vertex_depth = map(int, point)
 
     from itertools import product
     neigbours = product((1, -1), repeat=2)
@@ -590,7 +593,6 @@ depth_camera.listen(
 
 # Get the world to camera matrix
 world_2_camera = np.array(camera.get_transform().get_inverse_matrix())
-extrinsic = camera.get_transform().get_matrix()
 
 # Get the attributes from the camera
 image_w = camera_bp.get_attribute("image_size_x").as_int()
@@ -633,6 +635,8 @@ while True:
             world_2_camera = np.array(
                 camera.get_transform().get_inverse_matrix())
 
+            extrinsic = camera.get_transform().get_matrix()
+
             kitti_labels = []
             for npc in world.get_actors().filter('*vehicle*'):
 
@@ -642,7 +646,7 @@ while True:
                     bb = npc.bounding_box
                     dist = npc.get_transform().location.distance(vehicle.get_transform().location)
 
-                    # Filter for the vehicles within 50m
+                    # Filter for the vehicles within 100m
                     if dist < PRELIMINARY_FILTER_DISTANCE:
                         # Calculate the dot product between the forward vector
                         # of the vehicle and the vector between the vehicle
@@ -750,59 +754,62 @@ while True:
                                     z_max = p2_temp[2] if p2_temp[2] > z_max else z_max
                                     z_min = p2_temp[2] if p2_temp[2] < z_min else z_min
 
-                            vertices_pos2d = bbox_2d_from_agent(
-                                K, extrinsic, npc.bounding_box, npc.get_transform(), 1)
-                            num_visible_vertices, num_vertices_outside_camera = calculate_occlusion_stats(
-                                vertices_pos2d, depth_map, image_h, image_w)
+                            # Exclude very small bounding boxes
+                            if (y_max - y_min) * (x_max - x_min) > 100 and (x_max - x_min) > 20:
+                                if point_in_canvas((x_min, y_min), image_h, image_w) and point_in_canvas((x_max, y_max), image_h, image_w):
 
-                            truncated = num_vertices_outside_camera / 8
-                            if num_visible_vertices >= 6:
-                                occluded = 0
-                            elif num_visible_vertices >= 4:
-                                occluded = 1
-                            else:
-                                occluded = 2
+                                    vertices_pos2d = bbox_2d_from_agent(
+                                        K, extrinsic, npc.bounding_box, npc.get_transform(), 1)
+                                    num_visible_vertices, num_vertices_outside_camera = calculate_occlusion_stats(
+                                        vertices_pos2d, depth_map)
 
-                            rotation_y = get_relative_rotation_y(
-                                npc.get_transform().rotation, npc.get_transform().rotation) % math.pi
+                                    truncated = num_vertices_outside_camera / 8
+                                    if num_visible_vertices >= 6:
+                                        occluded = 0
+                                    elif num_visible_vertices >= 4:
+                                        occluded = 1
+                                    else:
+                                        occluded = 2
 
-                            # Bbox extent consists of x,y and z.
-                            # The bbox extent is by Carla set as
-                            # x: length of vehicle (driving direction)
-                            # y: to the right of the vehicle
-                            # z: up (direction of car roof)
-                            # However, Kitti expects height, width and length (z, y, x):
-                            # Since Carla gives us bbox extent, which is a half-box, multiply all by two
-                            bbox_extent = npc.bounding_box.extent
-                            height, width, length = bbox_extent.z, bbox_extent.x, bbox_extent.y
-                            loc_x, loc_y, loc_z = [float(x) for x in midpoint_from_agent_location(
-                                npc.get_transform().location, extrinsic)][0:3]
-                            kitti_labels.append([npc.id,
-                                                "Car",
-                                                 truncated,
-                                                 occluded,
-                                                 0,
-                                                 x_min, y_min, x_max, y_max, z_min, z_max,
-                                                 height, width, length,
-                                                 loc_x, loc_y, loc_z,
-                                                 rotation_y,
-                                                 ])
+                                    alpha = np.arccos(forward_vec.dot(ray) / np.sqrt(ray.squared_length()))
+                                    rotation_y = get_relative_rotation_y(
+                                        npc.get_transform().rotation, npc.get_transform().rotation) % math.pi
+
+                                    # Bbox extent consists of x,y and z.
+                                    # The bbox extent is by Carla set as
+                                    # x: length of vehicle (driving direction)
+                                    # y: to the right of the vehicle
+                                    # z: up (direction of car roof)
+                                    # However, Kitti expects height, width and length (z, y, x):
+                                    # Since Carla gives us bbox extent, which is a half-box, multiply all by two
+                                    bbox_extent = npc.bounding_box.extent
+                                    height, width, length = bbox_extent.z, bbox_extent.x, bbox_extent.y
+                                    loc_x, loc_y, loc_z = [float(x) for x in midpoint_from_agent_location(
+                                        npc.get_transform().location, extrinsic)][0:3]
+
+                                    kitti_labels.append([npc.id,
+                                                        "Car",
+                                                        truncated,
+                                                        occluded,
+                                                        alpha,
+                                                        x_min, y_min, x_max, y_max, z_min, z_max,
+                                                        height, width, length,
+                                                        loc_x, loc_y, loc_z,
+                                                        rotation_y,
+                                                        ])
 
             for label in kitti_labels:
                 id, type, tuncated, occluded, alpha, x_min, y_min, x_max, y_max, z_min, z_max, height, width, length, loc_x, loc_y, loc_z, rotation_y = label
 
-                # Exclude very small bounding boxes
-                if (y_max - y_min) * (x_max - x_min) > 100 and (x_max - x_min) > 20:
-                    if point_in_canvas((x_min, y_min), image_h, image_w) and point_in_canvas((x_max, y_max), image_h, image_w):
-                        if occluded <= 2:
-                            cv2.line(img, (int(x_min), int(y_min)), (int(
-                                x_max), int(y_min)), (0, 0, 255, 255), 1)
-                            cv2.line(img, (int(x_min), int(y_max)), (int(
-                                x_max), int(y_max)), (0, 0, 255, 255), 1)
-                            cv2.line(img, (int(x_min), int(y_min)), (int(
-                                x_min), int(y_max)), (0, 0, 255, 255), 1)
-                            cv2.line(img, (int(x_max), int(y_min)), (int(
-                                x_max), int(y_max)), (0, 0, 255, 255), 1)
+                cv2.line(img, (int(x_min), int(y_min)), (int(
+                    x_max), int(y_min)), (0, 0, 255, 255), 1)
+                cv2.line(img, (int(x_min), int(y_max)), (int(
+                    x_max), int(y_max)), (0, 0, 255, 255), 1)
+                cv2.line(img, (int(x_min), int(y_min)), (int(
+                    x_min), int(y_max)), (0, 0, 255, 255), 1)
+                cv2.line(img, (int(x_max), int(y_min)), (int(
+                    x_max), int(y_max)), (0, 0, 255, 255), 1)
+
                 f_label.write(
                     f"{frame_id} {id} Car {truncated} {occluded} {alpha} {x_min} {y_min} {x_max} {y_max} {height} {width} {length} {loc_x} {loc_y} {loc_z} {rotation_y}\n")
 
@@ -812,7 +819,9 @@ while True:
             t_save = threading.Thread(target=image.save_to_disk,
                                       args=(file_path, carla.ColorConverter.Raw))
             t_save.start()
+            f_label.flush()
             print(f"Saving frame to {file_path}")
+
             frame_id = frame_id + 1
 
             cv2.imshow('2D Bounding Boxes', img)
