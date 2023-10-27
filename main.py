@@ -365,71 +365,56 @@ if __name__ == "__main__":
                                 if (y_max - y_min) * (x_max - x_min) > 100 and (x_max - x_min) > 20:
                                     if point_in_canvas((x_min, y_min), image_h, image_w) and point_in_canvas((x_max, y_max), image_h, image_w):
 
-                                        vertices_pos2d = bbox_2d_from_agent(
-                                            K, extrinsic, npc.bounding_box, npc.get_transform(), 1)
                                         num_visible_vertices, num_vertices_outside_camera = calculate_occlusion_stats(
-                                            vertices_pos2d, depth_map, MAX_RENDER_DEPTH_IN_METERS)
+                                            points_image, depth_map, MAX_RENDER_DEPTH_IN_METERS)
 
-                                        # Use 8 3D vertices to calculate occlusion
-                                        # if num_visible_vertices >= 6:
-                                        #     occluded = 0
-                                        # elif num_visible_vertices >= 4:
-                                        #     occluded = 1
-                                        # else:
-                                        #     occluded = 2
-
-                                        # Use 4 2D vertices to calculate occlusion
-                                        o1 = point_is_occluded((y_min, x_min, z_min), depth_map)
-                                        o2 = point_is_occluded((y_min, x_min, z_max), depth_map)
-                                        o3 = point_is_occluded((y_max, x_max, z_min), depth_map)
-                                        o4 = point_is_occluded((y_max, x_max, z_max), depth_map)
-
-                                        # Not all points are occluded
-                                        if (o1 + o2 + o3 + o4 < 2):
+                                        # Use 3D vertices to calculate occlusion
+                                        if num_visible_vertices >= 6:
                                             occluded = 0
-                                        elif (o1 + o2 + o3 + o4 < 3):
+                                        elif num_visible_vertices >= 4:
                                             occluded = 1
                                         else:
                                             occluded = 2
 
-                                        truncated = num_vertices_outside_camera / 8
+                                        if not (occluded == 2 and dist > 50):
+                                            truncated = num_vertices_outside_camera / 8
 
-                                        cos_alpha = forward_vec.dot(
-                                            ray) / np.sqrt(ray.squared_length())
-                                        if cos_alpha > 1 or cos_alpha < -1:
-                                            if np.allclose(cos_alpha, 1):
-                                                cos_alpha = 1
-                                            elif np.allclose(cos_alpha, -1):
-                                                cos_alpha = -1
-                                            else:
-                                                print("Error: Invalid ALpha")
-                                        alpha = np.arccos(cos_alpha)
+                                            cos_alpha = forward_vec.dot(
+                                                ray) / np.sqrt(ray.squared_length())
+                                            if cos_alpha > 1 or cos_alpha < -1:
+                                                if np.allclose(cos_alpha, 1):
+                                                    cos_alpha = 1
+                                                elif np.allclose(cos_alpha, -1):
+                                                    cos_alpha = -1
+                                                else:
+                                                    print("Error: Invalid ALpha")
+                                            alpha = np.arccos(cos_alpha)
 
-                                        rotation_y = get_relative_rotation_y(
-                                            npc.get_transform().rotation, npc.get_transform().rotation) % math.pi
+                                            rotation_y = get_relative_rotation_y(
+                                                npc.get_transform().rotation, npc.get_transform().rotation) % math.pi
 
-                                        # Bbox extent consists of x,y and z.
-                                        # The bbox extent is by Carla set as
-                                        # x: length of vehicle (driving direction)
-                                        # y: to the right of the vehicle
-                                        # z: up (direction of car roof)
-                                        # However, Kitti expects height, width and length (z, y, x):
-                                        # Since Carla gives us bbox extent, which is a half-box, multiply all by two
-                                        bbox_extent = npc.bounding_box.extent
-                                        height, width, length = bbox_extent.z, bbox_extent.x, bbox_extent.y
-                                        loc_x, loc_y, loc_z = [float(x) for x in midpoint_from_agent_location(
-                                            npc.get_transform().location, extrinsic)][0:3]
+                                            # Bbox extent consists of x,y and z.
+                                            # The bbox extent is by Carla set as
+                                            # x: length of vehicle (driving direction)
+                                            # y: to the right of the vehicle
+                                            # z: up (direction of car roof)
+                                            # However, Kitti expects height, width and length (z, y, x):
+                                            # Since Carla gives us bbox extent, which is a half-box, multiply all by two
+                                            bbox_extent = npc.bounding_box.extent
+                                            height, width, length = bbox_extent.z, bbox_extent.x, bbox_extent.y
+                                            loc_x, loc_y, loc_z = [float(x) for x in midpoint_from_agent_location(
+                                                npc.get_transform().location, extrinsic)][0:3]
 
-                                        kitti_labels.append([npc.id,
-                                                            "Car",
-                                                             truncated,
-                                                             occluded,
-                                                             alpha,
-                                                             x_min, y_min, x_max, y_max, z_min, z_max,
-                                                             height, width, length,
-                                                             loc_x, loc_y, loc_z,
-                                                             rotation_y,
-                                                             ])
+                                            kitti_labels.append([npc.id,
+                                                                "Car",
+                                                                truncated,
+                                                                occluded,
+                                                                alpha,
+                                                                x_min, y_min, x_max, y_max, z_min, z_max,
+                                                                height, width, length,
+                                                                loc_x, loc_y, loc_z,
+                                                                rotation_y,
+                                                                ])
 
                 for label in kitti_labels:
                     id, type, tuncated, occluded, alpha, x_min, y_min, x_max, y_max, z_min, z_max, height, width, length, loc_x, loc_y, loc_z, rotation_y = label

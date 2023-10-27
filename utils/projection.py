@@ -91,7 +91,7 @@ def point_is_occluded(point, depth_map):
     """ Checks whether or not the four pixels directly around the given point has less depth than the given vertex depth
         If True, this means that the point is occluded.
     """
-    y, x, vertex_depth = map(int, point)
+    x, y, vertex_depth = map(int, point)
 
     from itertools import product
     neigbours = product((1, -1), repeat=2)
@@ -100,9 +100,9 @@ def point_is_occluded(point, depth_map):
     for dy, dx in neigbours:
         # If the point is on the boundary
         if x == (depth_map.shape[1] - 1) or y == (depth_map.shape[0] - 1):
-            dy = dx = 0
+            is_occluded.append(True)
         # If the depth map says the pixel is closer to the camera than the actual vertex
-        if depth_map[y + dy, x + dx] < vertex_depth:
+        elif depth_map[y + dy, x + dx] < vertex_depth:
             is_occluded.append(True)
         else:
             is_occluded.append(False)
@@ -116,11 +116,11 @@ def calculate_occlusion_stats(vertices_pos2d, depth_image, MAX_RENDER_DEPTH_IN_M
 
     image_h, image_w = depth_image.shape
 
-    for y_2d, x_2d, vertex_depth in vertices_pos2d:
+    for x_2d, y_2d, vertex_depth in vertices_pos2d:
         # 点在可见范围中，并且没有超出图片范围
-        if MAX_RENDER_DEPTH_IN_METERS > vertex_depth > 0 and point_in_canvas((y_2d, x_2d), image_h, image_w):
+        if MAX_RENDER_DEPTH_IN_METERS > vertex_depth > 0 and point_in_canvas((x_2d, y_2d), image_h, image_w):
             is_occluded = point_is_occluded(
-                (y_2d, x_2d, vertex_depth), depth_image)
+                (x_2d, y_2d, vertex_depth), depth_image)
             if not is_occluded:
                 num_visible_vertices += 1
         else:
