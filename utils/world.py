@@ -10,6 +10,8 @@ def spawn_npc(client, nbr_vehicles, nbr_walkers):
 
     world = client.get_world()
 
+    world.set_weather(carla.WeatherParameters.ClearNoon)
+
     traffic_manager = client.get_trafficmanager()
     traffic_manager.set_global_distance_to_leading_vehicle(1.0)
 
