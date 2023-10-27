@@ -64,7 +64,7 @@ if __name__ == "__main__":
         '--town',
         type=int,
         default=1,
-        choices=range(0,8),
+        choices=range(0, 8),
         metavar="[0-7]",
         help='Map index: Town 1, 2, 3, ..., 7'
     )
@@ -82,8 +82,10 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    IMAGE_PATH = os.path.join(DATA_FOLDER, f"Town0{args.town}", "image", f"{args.index:04d}")
-    LABEL_FILE = os.path.join(DATA_FOLDER, f"Town0{args.town}", "label", f"{args.index:04d}.txt")
+    IMAGE_PATH = os.path.join(
+        DATA_FOLDER, f"Town0{args.town}", "image", f"{args.index:04d}")
+    LABEL_FILE = os.path.join(
+        DATA_FOLDER, f"Town0{args.town}", "label", f"{args.index:04d}.txt")
 
     # Create a new directory if it does not exist
     if not os.path.exists(os.path.dirname(LABEL_FILE)):
@@ -368,17 +370,39 @@ if __name__ == "__main__":
                                         num_visible_vertices, num_vertices_outside_camera = calculate_occlusion_stats(
                                             vertices_pos2d, depth_map, MAX_RENDER_DEPTH_IN_METERS)
 
-                                        truncated = num_vertices_outside_camera / 8
-                                        if num_visible_vertices >= 6:
+                                        # Use 8 3D vertices to calculate occlusion
+                                        # if num_visible_vertices >= 6:
+                                        #     occluded = 0
+                                        # elif num_visible_vertices >= 4:
+                                        #     occluded = 1
+                                        # else:
+                                        #     occluded = 2
+
+                                        # Use 4 2D vertices to calculate occlusion
+                                        o1 = point_is_occluded((y_min, x_min, z_min), depth_map)
+                                        o2 = point_is_occluded((y_min, x_min, z_max), depth_map)
+                                        o3 = point_is_occluded((y_max, x_max, z_min), depth_map)
+                                        o4 = point_is_occluded((y_max, x_max, z_max), depth_map)
+
+                                        # Not all points are occluded
+                                        if (o1 + o2 + o3 + o4 < 2):
                                             occluded = 0
-                                        elif num_visible_vertices >= 4:
+                                        elif (o1 + o2 + o3 + o4 < 3):
                                             occluded = 1
                                         else:
                                             occluded = 2
 
-                                        cos_alpha = forward_vec.dot(ray) / np.sqrt(ray.squared_length())
+                                        truncated = num_vertices_outside_camera / 8
+
+                                        cos_alpha = forward_vec.dot(
+                                            ray) / np.sqrt(ray.squared_length())
                                         if cos_alpha > 1 or cos_alpha < -1:
-                                            print("Invalid ALpha")
+                                            if np.allclose(cos_alpha, 1):
+                                                cos_alpha = 1
+                                            elif np.allclose(cos_alpha, -1):
+                                                cos_alpha = -1
+                                            else:
+                                                print("Error: Invalid ALpha")
                                         alpha = np.arccos(cos_alpha)
 
                                         rotation_y = get_relative_rotation_y(
@@ -410,20 +434,17 @@ if __name__ == "__main__":
                 for label in kitti_labels:
                     id, type, tuncated, occluded, alpha, x_min, y_min, x_max, y_max, z_min, z_max, height, width, length, loc_x, loc_y, loc_z, rotation_y = label
 
-                    # Visible: Blue
-                    color = (0, 0, 255)
-                    if occluded < 2:
-                        # Invisible: Red
-                        color = (255, 0, 0)
+                    # BGR - Visible: Blue, Partially Visible: Yellow, Invisible: Red
+                    colors = [(255, 0, 0), (0, 255, 255), (0, 0, 255)]
 
-                    cv2.line(img, (int(x_min), int(y_min)), (int(
-                        x_max), int(y_min)), color, 1)
-                    cv2.line(img, (int(x_min), int(y_max)), (int(
-                        x_max), int(y_max)), color, 1)
-                    cv2.line(img, (int(x_min), int(y_min)), (int(
-                        x_min), int(y_max)), color, 1)
-                    cv2.line(img, (int(x_max), int(y_min)), (int(
-                        x_max), int(y_max)), color, 1)
+                    cv2.line(img, (int(x_min), int(y_min)),
+                             (int(x_max), int(y_min)), colors[occluded], 1)
+                    cv2.line(img, (int(x_min), int(y_max)),
+                             (int(x_max), int(y_max)), colors[occluded], 1)
+                    cv2.line(img, (int(x_min), int(y_min)),
+                             (int(x_min), int(y_max)), colors[occluded], 1)
+                    cv2.line(img, (int(x_max), int(y_min)),
+                             (int(x_max), int(y_max)), colors[occluded], 1)
 
                     f_label.write(
                         f"{frame_id} {id} Car {truncated} {occluded} {alpha:.6f} {x_min:.6f} {y_min:.6f} {x_max:.6f} {y_max:.6f} {height:.6f} {width:.6f} {length:.6f} {loc_x:.6f} {loc_y:.6f} {loc_z:.6f} {rotation_y:.6f}\n")
