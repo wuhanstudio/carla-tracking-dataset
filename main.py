@@ -106,6 +106,9 @@ if __name__ == "__main__":
     world = client.load_world("Town0" + str(args.town))
     world = client.get_world()
 
+    print(f"Start Recording: Town0{args.town}_{args.index:04d}.log")
+    client.start_recorder(f"Town0{args.town}_{args.index:04d}.log")
+
     # Set up the simulator in synchronous mode
     settings = world.get_settings()
     settings.synchronous_mode = True
@@ -462,5 +465,8 @@ if __name__ == "__main__":
             f_label.close()
             clear()
             break
+
+    print(f"Stop recording: Town0{args.town}_{args.index:04d}.log")
+    client.stop_recorder()
 
     cv2.destroyAllWindows()
