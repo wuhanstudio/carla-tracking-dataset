@@ -109,16 +109,15 @@ if __name__ == "__main__":
                 cv2.imshow('2D Bounding Boxes', img)
 
                 if cv2.waitKey(1) == ord('q'):
-                    f_label.close()
-                    kitti_world.clear()
                     break
-    
+
         except KeyboardInterrupt as e:
-            f_label.close()
-            kitti_world.clear()
             break
 
     print(f"Stop recording: Town0{args.town}_{args.index:04d}.log")
     client.stop_recorder()
+
+    f_label.close()
+    kitti_world.clear()
 
     cv2.destroyAllWindows()
