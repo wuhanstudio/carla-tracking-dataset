@@ -38,7 +38,7 @@ class KittiWorld:
         self.spawn_kitti()
 
         # Spawn vehicles and walkers
-        self.spawn_npc(50, 0)
+        self.spawn_npc(100, 0)
 
         # Wait for KITTI to stop
         start = self.world.get_snapshot().timestamp.elapsed_seconds
@@ -383,12 +383,12 @@ class KittiWorld:
         # Create a RGB camera
         camera_bp = bp_lib.find('sensor.camera.rgb')
 
-        # camera_bp.set_attribute('image_size_x', '1392')
-        # camera_bp.set_attribute('image_size_y', '1024')
+        camera_bp.set_attribute('image_size_x', '1392')
+        camera_bp.set_attribute('image_size_y', '1024')
 
         # Windows Fix: https://github.com/carla-simulator/carla/issues/6085
-        camera_bp.set_attribute('image_size_x', '1280')
-        camera_bp.set_attribute('image_size_y', '640')
+        # camera_bp.set_attribute('image_size_x', '1280')
+        # camera_bp.set_attribute('image_size_y', '640')
 
         # 72 degrees # Always fov on width even if width is different than height
         camera_bp.set_attribute('fov', '72')
@@ -410,12 +410,12 @@ class KittiWorld:
         # Create a depth camera
         depth_camera_bp = self.world.get_blueprint_library().find('sensor.camera.depth')
 
-        # depth_camera_bp.set_attribute('image_size_x', '1392')
-        # depth_camera_bp.set_attribute('image_size_y', '1024')
+        depth_camera_bp.set_attribute('image_size_x', '1392')
+        depth_camera_bp.set_attribute('image_size_y', '1024')
 
         # Windows Fix: https://github.com/carla-simulator/carla/issues/6085
-        depth_camera_bp.set_attribute('image_size_x', '1280')
-        depth_camera_bp.set_attribute('image_size_y', '640')
+        # depth_camera_bp.set_attribute('image_size_x', '1280')
+        # depth_camera_bp.set_attribute('image_size_y', '640')
 
         # 72 degrees # Always fov on width even if width is different than height
         depth_camera_bp.set_attribute('fov', '72')
