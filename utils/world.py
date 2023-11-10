@@ -10,7 +10,7 @@ from carla import VehicleLightState as vls
 
 from .projection import *
 
-MAX_RENDER_DEPTH_IN_METERS = 100
+MAX_RENDER_DEPTH_IN_METERS = 50
 
 class KittiWorld:
     def __init__(self, client) -> None:
@@ -38,7 +38,7 @@ class KittiWorld:
         self.spawn_kitti()
 
         # Spawn vehicles and walkers
-        self.spawn_npc(100, 0)
+        self.spawn_npc(200, 0)
 
         # Wait for KITTI to stop
         start = self.world.get_snapshot().timestamp.elapsed_seconds
@@ -78,8 +78,7 @@ class KittiWorld:
                 self.__temp_ts__ = ts
 
                 # Get the camera matrix
-                world_2_camera = np.array(
-                    self.camera.get_transform().get_inverse_matrix())
+                world_2_camera = np.array(self.camera.get_transform().get_inverse_matrix())
 
                 extrinsic = self.camera.get_transform().get_matrix()
 
@@ -89,8 +88,7 @@ class KittiWorld:
                     if npc.id != self.vehicle.id:
 
                         bb = npc.bounding_box
-                        dist = npc.get_transform().location.distance(
-                            self.vehicle.get_transform().location)
+                        dist = npc.get_transform().location.distance(self.vehicle.get_transform().location)
 
                         # Filter for the vehicles within 100m
                         if dist < MAX_RENDER_DEPTH_IN_METERS:
@@ -143,11 +141,14 @@ class KittiWorld:
                                         else:
                                             occluded = 2
 
-                                        if not (occluded == 2 and dist > 50):
-                                            truncated = num_vertices_outside_camera / 8
+                                        truncated = num_vertices_outside_camera / 8
 
-                                            cos_alpha = forward_vec.dot(
-                                                ray) / np.sqrt(ray.squared_length())
+                                        if (y_max - y_min) / (x_max - x_min) < 1.6:
+
+                                            if (occluded == 2) and (dist > 20):
+                                                continue
+
+                                            cos_alpha = forward_vec.dot(ray) / np.sqrt(ray.squared_length())
                                             if cos_alpha > 1 or cos_alpha < -1:
                                                 if np.allclose(cos_alpha, 1):
                                                     cos_alpha = 1
@@ -157,8 +158,7 @@ class KittiWorld:
                                                     print("Error: Invalid ALpha")
                                             alpha = np.arccos(cos_alpha)
 
-                                            rotation_y = get_relative_rotation_y(
-                                                npc.get_transform().rotation, npc.get_transform().rotation) % math.pi
+                                            rotation_y = get_relative_rotation_y(npc.get_transform().rotation, npc.get_transform().rotation) % math.pi
 
                                             # Bbox extent consists of x,y and z.
                                             # The bbox extent is by Carla set as
@@ -169,8 +169,7 @@ class KittiWorld:
                                             # Since Carla gives us bbox extent, which is a half-box, multiply all by two
                                             bbox_extent = npc.bounding_box.extent
                                             height, width, length = bbox_extent.z, bbox_extent.x, bbox_extent.y
-                                            loc_x, loc_y, loc_z = [float(x) for x in midpoint_from_agent_location(
-                                                npc.get_transform().location, extrinsic)][0:3]
+                                            loc_x, loc_y, loc_z = [float(x) for x in midpoint_from_agent_location(npc.get_transform().location, extrinsic)][0:3]
 
                                             kitti_labels.append([npc.id,
                                                                 "Car",
@@ -197,8 +196,7 @@ class KittiWorld:
         vehicle_bp = bp_lib.find('vehicle.tesla.model3')
         vehicle_bp.set_attribute('color', '228, 239, 241')
         vehicle_bp.set_attribute('role_name', 'KITTI')
-        self.vehicle = self.world.try_spawn_actor(
-            vehicle_bp, random.choice(spawn_points))
+        self.vehicle = self.world.try_spawn_actor(vehicle_bp, random.choice(spawn_points))
 
     def spawn_npc(self, nbr_vehicles, nbr_walkers):
         vehicles_list = []
@@ -220,13 +218,10 @@ class KittiWorld:
 
         safe = True
         if safe:
-            blueprints = [x for x in blueprints if int(
-                x.get_attribute('number_of_wheels')) == 4]
+            blueprints = [x for x in blueprints if int(x.get_attribute('number_of_wheels')) == 4]
             blueprints = [x for x in blueprints if not x.id.endswith('isetta')]
-            blueprints = [
-                x for x in blueprints if not x.id.endswith('carlacola')]
-            blueprints = [
-                x for x in blueprints if not x.id.endswith('cybertruck')]
+            blueprints = [x for x in blueprints if not x.id.endswith('carlacola')]
+            blueprints = [x for x in blueprints if not x.id.endswith('cybertruck')]
             blueprints = [x for x in blueprints if not x.id.endswith('t2')]
 
         blueprints = sorted(blueprints, key=lambda bp: bp.id)
