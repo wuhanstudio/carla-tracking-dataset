@@ -21,6 +21,7 @@ To convert collected 2D images to videos:
 $ ./auto_gen_mp4.sh
 ```
 
+![](dataset.png)
 
     data/
     └── gt
@@ -53,6 +54,3 @@ $ ./auto_gen_mp4.sh
                 └── Town11
                     ├── image
                     └── label
-
-
-![](dataset.png)
