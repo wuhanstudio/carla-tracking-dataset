@@ -18,9 +18,9 @@ if __name__ == "__main__":
         '--town',
         type=int,
         default=1,
-        choices=range(0, 8),
-        metavar="[0-7]",
-        help='Map index: Town 1, 2, 3, ..., 7'
+        choices=range(0, 13),
+        metavar="[0-12]",
+        help='Map index: Town 1, 2, 3, ..., 13'
     )
     parser.add_argument(
         '--frame',
@@ -37,9 +37,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     IMAGE_PATH = os.path.join(
-        DATA_FOLDER, f"Town0{args.town}", "image", f"{args.index:04d}")
+            DATA_FOLDER, f"Town{args.town:02d}", "image", f"{args.index:04d}")
     LABEL_FILE = os.path.join(
-        DATA_FOLDER, f"Town0{args.town}", "label", f"{args.index:04d}.txt")
+            DATA_FOLDER, f"Town{args.town:02d}", "label", f"{args.index:04d}.txt")
 
     # Create a new directory if it does not exist
     if not os.path.exists(os.path.dirname(LABEL_FILE)):
@@ -56,8 +56,8 @@ if __name__ == "__main__":
     client.set_timeout(100.0)
 
     # Load the map
-    print("Loading Map Town0" + str(args.town))
-    world = client.load_world("Town0" + str(args.town))
+    print(f"Loading Map Town{args.town:02d}")
+    world = client.load_world(f"Town{args.town:02d}HD")
 
     print(f"Start Recording: Town0{args.town}_{args.index:04d}.log")
     client.start_recorder(f"Town0{args.town}_{args.index:04d}.log")
