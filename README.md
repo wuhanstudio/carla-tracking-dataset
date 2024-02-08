@@ -6,7 +6,12 @@
 - KITTI sensor / data format
 - Fixed the projection issue
 
-<br />
+![](carla-data.png)
+
+![](fix.png)
+
+## Quick Start
+
 To collect the data from Town 01, and save the data in folder `0000`:
 
 ```
